@@ -1,5 +1,14 @@
 {
-  "dependencies": {
+  "scripts": {
+    "build": "tsc",
+    "start": "npm run build && live-server"
+  },
+  "devDependencies": {
+    "live-server": "^1.2.2",
+    "lru-cache": "^10.2.2",
     "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "ethers": "^6.12.1"
   }
 }

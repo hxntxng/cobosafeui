@@ -1,5 +1,5 @@
 import { BaseOwnable } from "./ownable";
-import { Contract } from 'ethers';
+// import { Contract } from 'ethers';
 import { s32 } from './utils';
 
 export class FlatRoleManager extends BaseOwnable {

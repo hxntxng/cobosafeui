@@ -1,15 +1,19 @@
-import BaseAuthorizer from "./authorizer.ts";
-import BaseOwnable from "./ownable.ts";
-import { registerSubclass } from "../subclasses.ts";
+import { BaseAuthorizer } from "./authorizer.js";
+import { BaseOwnable } from "./ownable.js";
+import { registerSubclass } from "./subclasses.js";
 
-function convert(addr) {
-    function* _sub_classes(cls) {
-        for (const sub_cls of cls.__subclasses__()) {
-            yield sub_cls;
-            yield* _sub_classes(sub_cls);
-        }
+interface IVersion {
+    dump(full: boolean): void;
+}
+
+function* _sub_classes(cls: any): IterableIterator<any> {
+    for (const sub_cls of cls.__subclasses__()) {
+        yield sub_cls;
+        yield* _sub_classes(sub_cls);
     }
+}
 
+function convert(addr: string): BaseOwnable | BaseAuthorizer | null {
     const sub_cls = new Set(_sub_classes(BaseOwnable));
 
     const base = new BaseOwnable(addr);
@@ -26,7 +30,7 @@ function convert(addr) {
     }
 
     const base_auth = new BaseAuthorizer(addr);
-    const typ = base_auth.type;
+    const typ = base_auth.getType();
     if (typ === null) {
         return base;
     }
@@ -40,7 +44,7 @@ function convert(addr) {
     return base_auth;
 }
 
-function dump(addr, full = false) {
+function dump(addr: string, full: boolean = false): void {
     const obj = convert(addr);
     if (obj) {
         obj.dump(full);

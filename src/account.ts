@@ -106,13 +106,13 @@ class CoboAccount extends BaseOwnable {
             delegatesElement.innerHTML = `Delegates: ${(await this.getDelegates()).join(',')}`;
         }
 
-        if (full) {
-            printLine();
-            const dumpModule = await import('./autocontract.js');
-            await dumpModule.dump(await this.getRoleManager(), full);
-            printLine();
-            await dumpModule.dump(await this.getAuthorizer(), full);
-        }
+        // if (full) {
+        //     printLine();
+        //     const dumpModule = await import('./autocontract.js');
+        //     await dumpModule.dump(await this.getRoleManager(), full);
+        //     printLine();
+        //     await dumpModule.dump(await this.getAuthorizer(), full);
+        // }
     }
 }
 

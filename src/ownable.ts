@@ -1,6 +1,6 @@
 import { ethers, toUtf8CodePoints } from 'ethers';
 import abi from '../abi/BaseOwnable.json';
-import { s32, ETHEREUM_PROVIDER, loadContract } from './utils';
+import { s32, ETHEREUM_PROVIDER, loadContract } from './utils.js';
 
 
 export class BaseOwnable {

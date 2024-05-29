@@ -1,7 +1,5 @@
-import { FACTORY_ADDRESS, ETHEREUM_PROVIDER } from './utils';
-import { BaseOwnable } from './ownable';
-import { s32 } from './utils.js';
-
+import { FACTORY_ADDRESS, ETHEREUM_PROVIDER, s32 } from './utils.js';
+import { BaseOwnable } from './ownable.js';
 
 export class CoboFactory extends BaseOwnable {
     constructor(address: string = FACTORY_ADDRESS, provider: any = ETHEREUM_PROVIDER) {

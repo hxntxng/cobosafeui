@@ -22,11 +22,19 @@
     <div id="factory-pending-owner"></div>
     <div id="implementation"></div>
     <div id="contracts-list"></div>
-
-    <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"></script>
-    <script type="module" src="./src/ownable.js"></script>
-    <script type="module" src="./src/factory.js"></script>
-    <script type="module" src="./src/utils.js"></script>
+    <script>var exports = {};</script>
+    <script type="importmap">
+        {
+          "imports": {
+            "ethers": "https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"
+          }
+        }
+        </script>
+    <!-- <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"></script> -->
+    <script type="application/json" src="./abi/BaseOwnable.json"></script>
+    <script type="module" src="./dist/ownable.js"></script>
+    <script type="module" src="./dist/factory.js"></script>
+    <script type="module" src="./dist/utils.js"></script>
 
     <script>
         console.log("JavaScript is running!");

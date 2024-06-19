@@ -8,6 +8,7 @@ pip install git+https://github.com/hxntxng/cobosafeui
 
 # Usage
 ```
-$> python3 server.py
+$> npm start
+
 ```
 

@@ -1,37 +1,35 @@
-import { ethers } from 'ethers';
 import { BaseOwnable } from './ownable';
-import { FACTORY_ADDRESS, abiEncodeWithSig, printLine } from './utils';
-import { CoboFactory } from './factory';
+import { printLine } from './utils';
 import { GnosisSafe } from './gnosissafe';
-enum Operation { // help could make utils into ts so this isn't repetitive
+enum Operation { 
     CALL = 0,
     DELEGATE_CALL = 1
 }
 
 class CoboAccount extends BaseOwnable {
     delegate: string | null;
-    constructor(accountAddr: string, delegate: string | null = null) {
-        super(accountAddr);
+    constructor(accountAddr: string, provider: any, delegate: string | null = null) {
+        super(accountAddr, provider);
         this.delegate = delegate;
     }
     async getAuthorizer() {
-        return await this.contract.authorizer();
+        return await (await this.getContract()).authorizer();
     }
 
     async getRoleManager() {
-        return await this.contract.roleManager();
+        return await (await this.getContract()).roleManager();
     }
 
     async getDelegates() {
-        return await this.contract.getAllDelegates();
+        return await (await this.getContract()).getAllDelegates();
     }
 
     async getWalletAddress() {
-        return await this.contract.getAccountAddress();
+        return await (await this.getContract()).getAccountAddress();
     }
 
     async addDelegate(...delegates: string[]) {
-        return await this.contract.addDelegates(...delegates);
+        return await (await this.getContract()).addDelegates(...delegates);
     }
 
     async execTransaction(
@@ -53,40 +51,40 @@ class CoboAccount extends BaseOwnable {
         let tx = [flag, to, value, data, '0x', extra];
 
         if (useHint) {
-            const ret = await this.contract.execTransaction.call(tx, { from: delegate });
+            const ret = await (await this.getContract()).execTransaction.call(tx, { from: delegate });
             tx[4] = ret[2]; // CallData.hint = TransactionResult.hint
         }
-        return await this.contract.execTransaction(tx, { from: delegate });
+        return await (await this.getContract()).execTransaction(tx, { from: delegate });
     }
+    // TODO
+    // async execTransactionEx(
+    //     to: string,
+    //     funcSig: string,
+    //     args: any[],
+    //     value: number = 0,
+    //     flag: Operation = Operation.CALL,
+    //     useHint: boolean = true,
+    //     extra: string = '0x',
+    //     delegate: string | null = null
+    // ) {
+    //     const data = abiEncodeWithSig(funcSig, args);
+    //     return await this.execTransaction(to, data, value, flag, useHint, extra, delegate);
+    // }
 
-    async execTransactionEx(
-        to: string,
-        funcSig: string,
-        args: any[],
-        value: number = 0,
-        flag: Operation = Operation.CALL,
-        useHint: boolean = true,
-        extra: string = '0x',
-        delegate: string | null = null
-    ) {
-        const data = abiEncodeWithSig(funcSig, args);
-        return await this.execTransaction(to, data, value, flag, useHint, extra, delegate);
-    }
+    // async execRawTx(
+    //     tx: { to: string, value: number, data: string },
+    //     flag: Operation = Operation.CALL,
+    //     useHint: boolean = true,
+    //     extra: string = '0x',
+    //     delegate: string | null = null
+    // ) {
+    //     const { to, value, data } = tx;
+    //     return await this.execTransaction(to, data, value, flag, useHint, extra, delegate);
+    // }
 
-    async execRawTx(
-        tx: { to: string, value: number, data: string },
-        flag: Operation = Operation.CALL,
-        useHint: boolean = true,
-        extra: string = '0x',
-        delegate: string | null = null
-    ) {
-        const { to, value, data } = tx;
-        return await this.execTransaction(to, data, value, flag, useHint, extra, delegate);
-    }
-
-    toString() {
-        return `<${this.constructor.name} ${this.contract.address}>`;
-    }
+    // toString() {
+    //     return `<${this.constructor.name} ${this.contract.address}>`;
+    // }
 
     async dump(full: boolean = false) {
         await super.dump(full);
@@ -106,13 +104,14 @@ class CoboAccount extends BaseOwnable {
             delegatesElement.innerHTML = `Delegates: ${(await this.getDelegates()).join(',')}`;
         }
 
-        // if (full) {
-        //     printLine();
-        //     const dumpModule = await import('./autocontract.js');
-        //     await dumpModule.dump(await this.getRoleManager(), full);
-        //     printLine();
-        //     await dumpModule.dump(await this.getAuthorizer(), full);
-        // }
+        // TODO not sure if this works
+        if (full) {
+            printLine();
+            const dumpModule = await import('./autocontract.js');
+            await dumpModule.dump(await this.getRoleManager(), full);
+            printLine();
+            await dumpModule.dump(await this.getAuthorizer(), full);
+        }
     }
 }
 
@@ -128,11 +127,11 @@ export class CoboSafeAccount extends CoboAccount {
     async getSafe() {
         return new GnosisSafe(await this.getOwner(), this.safeOwner);
     }
-
-    async enable() {
-        const safe = await this.getSafe();
-        await safe.enableModule(this.contract.address);
-    }
+    // TODO
+    // async enable() {
+    //     const safe = await this.getSafe();
+    //     await safe.enableModule(this.contract.address);
+    // }
 
 
     // TODO

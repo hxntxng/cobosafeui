@@ -30,50 +30,7 @@
           }
         }
         </script>
-    <!-- <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"></script> -->
-    <script type="application/json" src="./abi/BaseOwnable.json"></script>
-    <script type="module" src="./dist/ownable.js"></script>
-    <script type="module" src="./dist/factory.js"></script>
-    <script type="module" src="./dist/utils.js"></script>
+    <script src="./dist/factorymain.bundle.js"></script>
 
-    <script>
-        console.log("JavaScript is running!");
-        
-        async function getFactoryData(chain) {
-            try {
-                const provider = new ethers.providers.JsonRpcProvider(getProviderUrl(chain));
-                const factory = new CoboFactory();
-                factory.dump();
-                
-            } catch (error) {
-                console.error('Error:', error);
-            }
-        }
-        
-        function getProviderUrl(chain) {
-            switch (chain) {
-                case 'ethereum':
-                    return "https://rpc.ankr.com/eth";
-                case 'polygon':
-                    return "https://rpc.ankr.com/polygon";
-                case 'arbitrum':
-                    return "https://rpc.ankr.com/arbitrum"
-                case 'avalanche':
-                    return "https://rpc.ankr.com/avalanche"  
-                // case 'mantle':
-                //     return "https://rpc.ankr.com/mantle"  
-                default:
-                    throw new Error('Unsupported chain');
-            }
-        }
-        
-        document.getElementById('chain-select').addEventListener('change', (event) => {
-            const selectedChain = event.target.value;
-            console.log(selectedChain);
-            getFactoryData(selectedChain);
-        });
-        
-        getFactoryData('ethereum');
-    </script>
 </body>
 </html>

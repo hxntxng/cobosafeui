@@ -34,61 +34,7 @@
     <div id="authorizers"></div>
     <div id="delegates"></div>
 
+    <script src="./dist/dumpmain.bundle.js"></script>
 
-    <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"
-        type="application/javascript"></script>
-
-        <script type="module">
-        import BaseOwnable from './dist/ownable.js';
-        import CoboFactory from './dist/factory.js';
-        import s32 from './src/utils.js';
-        import dump from './dist/autocontract.js';
-
-        console.log("JavaScript is running!");
-        
-        async function dumpData(address, full=false) {
-            dump(address);
-        }
-        async function getFactoryData(chain) {
-            try {
-                const provider = new ethers.providers.JsonRpcProvider(getProviderUrl(chain));
-                const baseOwnable = new CoboFactory();
-                baseOwnable.dump();
-                
-            } catch (error) {
-                console.error('Error:', error);
-            }
-        }
-        
-        function getProviderUrl(chain) {
-            switch (chain) {
-                case 'ethereum':
-                    return "https://rpc.ankr.com/eth";
-                case 'polygon':
-                    return "https://rpc.ankr.com/polygon";
-                case 'arbitrum':
-                    return "https://rpc.ankr.com/arbitrum"
-                case 'avalanche':
-                    return "https://rpc.ankr.com/avalanche"  
-                // case 'mantle':
-                //     return "https://rpc.ankr.com/mantle"  
-                default:
-                    throw new Error('Unsupported chain');
-            }
-        }
-        
-        document.getElementById('chain-select').addEventListener('change', (event) => {
-            const selectedChain = event.target.value;
-            console.log(selectedChain);
-        });
-
-        var input = document.getElementById("contract-address");
-        var submitButton = document.getElementById("dump-button");
-        submitButton.addEventListener("click", function() {
-        var userInput = input.value;
-        
-        dumpData(userInput);
-        });
-        </script>
 </body>
 </html>

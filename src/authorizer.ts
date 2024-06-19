@@ -1,60 +1,61 @@
-import { s32, ETH_ADDRESS} from "./utils.js";
-import { BaseOwnable, ERC20} from "./ownable.js";
-import { registerSubclass } from "./subclasses.js";
-import { CoboSafeAccount, CoboSmartAccount } from "./account.js"
+import { s32, ETH_ADDRESS, printLine} from "./utils.js";
+import { BaseOwnable, ERC20, RegisterSubclass } from "./ownable.js";
+import { CoboSafeAccount } from "./account.js"
 import { FlatRoleManager } from "./rolemanager.js";
 
-function getSymbol(addr: string): string {
+function getSymbol(addr: string, provider: any): string {
     if (addr.toLowerCase() === ETH_ADDRESS.toLowerCase()) {
         return `ETH(${addr})`;
     }
     try {
-        return `${new ERC20(addr).symbol}(${addr})`;
+        return `${new ERC20(addr, provider).symbol}(${addr})`;
     } catch (error) {
         return addr;
     }
 }
 
+
+@RegisterSubclass(BaseOwnable)
 export class BaseAuthorizer extends BaseOwnable {
     // Flags
-    static HAS_PRE_CHECK_MASK = 0x1;
-    static HAS_POST_CHECK_MASK = 0x2;
-    static HAS_PRE_PROC_MASK = 0x4;
-    static HAS_POST_PROC_MASK = 0x8;
-    static SUPPORT_HINT_MASK = 0x40;
-
-    async getCaller(): Promise<string> { // help is this allowed to be null
-        return await this.contract.caller();
+    static HAS_PRE_CHECK_MASK: bigint= 1n;   
+    static HAS_POST_CHECK_MASK: bigint = 2n;
+    static HAS_PRE_PROC_MASK: bigint = 4n;
+    static HAS_POST_PROC_MASK: bigint = 8n;
+    static SUPPORT_HINT_MASK: bigint = 64n;
+    
+    async getCaller(): Promise<string> { 
+        return await (await this.getContract()).caller();
     }
 
     async getTag(): Promise<string | null> {
         try {
-            return s32(await this.contract.tag());
+            return s32(await (await this.getContract()).tag());
         } catch (error) {
             return null;
         }
     }
 
-    async getFlag(): Promise<number> {
-        return await this.contract.flag();
+    async getFlag(): Promise<bigint> {
+        return await (await this.getContract()).flag();
     }
 
     async getFlagStr(): Promise<string> {
         const flag = await this.getFlag();
         const flags: string[] = [];
-        if ((flag & BaseAuthorizer.HAS_PRE_CHECK_MASK) > 0) {
+        if ((flag & BaseAuthorizer.HAS_PRE_CHECK_MASK) > 0n) {
             flags.push("PreCheck");
         }
-        if ((flag & BaseAuthorizer.HAS_POST_CHECK_MASK) > 0) {
+        if ((flag & BaseAuthorizer.HAS_POST_CHECK_MASK) > 0n) {
             flags.push("PostCheck");
         }
-        if ((flag & BaseAuthorizer.HAS_PRE_PROC_MASK) > 0) {
+        if ((flag & BaseAuthorizer.HAS_PRE_PROC_MASK) > 0n) {
             flags.push("PreProcess");
         }
-        if ((flag & BaseAuthorizer.HAS_POST_PROC_MASK) > 0) {
+        if ((flag & BaseAuthorizer.HAS_POST_PROC_MASK) > 0n) {
             flags.push("PostProcess");
         }
-        if ((flag & BaseAuthorizer.SUPPORT_HINT_MASK) > 0) {
+        if ((flag & BaseAuthorizer.SUPPORT_HINT_MASK) > 0n) {
             flags.push("SupportHint");
         }
         return flags.join(",");
@@ -62,7 +63,7 @@ export class BaseAuthorizer extends BaseOwnable {
 
     async getType(): Promise<string | null> {
         try {
-            return s32(await this.contract.TYPE());
+            return s32(await (await this.getContract()).TYPE());
         } catch (error) {
             return null;
         }
@@ -113,15 +114,14 @@ export class BaseAuthorizer extends BaseOwnable {
     }
 }
 
-registerSubclass('BaseAuthorizer', BaseAuthorizer);
-
+@RegisterSubclass(BaseOwnable)
 export class ArgusRootAuthorizer extends BaseAuthorizer {
     public async getRoles(): Promise<string[]> {
         const roleList: string[] = [];
         const uniqueRoles: { [key: string]: boolean } = {};
     
         try {
-            const roles = await this.contract.getAllRoles();
+            const roles = await (await this.getContract()).getAllRoles();
             roles.forEach((role: any) => {
                 const roleStr = s32(role);
                 if (!uniqueRoles[roleStr]) {
@@ -134,17 +134,20 @@ export class ArgusRootAuthorizer extends BaseAuthorizer {
         }
     
         try {
+            console.log(roleList);
             const caller = await this.getCaller();
-            const callerName = await new BaseOwnable(caller).getName();
-            if (callerName === "CoboSafeAccount" || callerName === "CoboSmartAccount") {
-                const roleManager = new FlatRoleManager(await new CoboSafeAccount(caller).getRoleManager());
-                const roles = await roleManager.getAllRoles();
-                roles.forEach((role: string) => {
-                    if (!uniqueRoles[role]) {
-                        uniqueRoles[role] = true;
-                        roleList.push(role);
-                    }
-                });
+            if (caller != '0x0000000000000000000000000000000000000000') {
+                const callerName = await new BaseOwnable(caller, this.provider).getName();
+                if (callerName === "CoboSafeAccount" || callerName === "CoboSmartAccount") {
+                    const roleManager = new FlatRoleManager(await new CoboSafeAccount(caller).getRoleManager(), this.provider);
+                    const roles = await roleManager.getAllRoles();
+                    roles.forEach((role: string) => {
+                        if (!uniqueRoles[role]) {
+                            uniqueRoles[role] = true;
+                            roleList.push(role);
+                        }
+                    });
+                }
             }
         } catch (error) {
             console.error("Error:", error);
@@ -157,12 +160,14 @@ export class ArgusRootAuthorizer extends BaseAuthorizer {
         const delegateToRole: { [key: string]: string } = {};
         try {
             const caller = await this.getCaller();
-            if (await new BaseOwnable(caller).getName() == "CoboSafeAccount" || await new BaseOwnable(caller).getName() == "CoboSmartAccount") {
-                const roleManager = new FlatRoleManager(new CoboSafeAccount(caller).getRoleManager);
-                const delegateList = await roleManager.getAllDelegates();
-                for (const delegate of delegateList) {
-                    const roles = await roleManager.getRoles(delegate);
-                    delegateToRole[delegate] = roles.map((role: any) => s32(role)).join(",");
+            if (caller != '0x0000000000000000000000000000000000000000') {
+                if (await new BaseOwnable(caller, this.provider).getName() == "CoboSafeAccount" || await new BaseOwnable(caller, this.provider).getName() == "CoboSmartAccount") {
+                    const roleManager = new FlatRoleManager(new CoboSafeAccount(caller).getRoleManager, this.provider);
+                    const delegateList = await roleManager.getAllDelegates();
+                    for (const delegate of delegateList) {
+                        const roles = await roleManager.getRoles(delegate);
+                        delegateToRole[delegate] = roles.map((role: any) => s32(role)).join(",");
+                    }
                 }
             }
         } catch (error) {
@@ -173,7 +178,7 @@ export class ArgusRootAuthorizer extends BaseAuthorizer {
 
     public async getAuthorizers(role: string, delegatecall: boolean = false): Promise<string[]> {
         try {
-            return await this.contract.getAllAuthorizers(delegatecall, role); // make sure role is encoded
+            return await (await this.getContract()).getAllAuthorizers(delegatecall, role); // make sure role is encoded
         } catch (error) {
             console.error("Error:", error);
             return [];
@@ -182,13 +187,12 @@ export class ArgusRootAuthorizer extends BaseAuthorizer {
 
     public async dump(full: boolean = false): Promise<void> {
         await super.dump(full);
-
         const authorizersElement = document.getElementById('authorizers');
         const delegatesElement = document.getElementById('delegates');
 
         if (authorizersElement && delegatesElement) {
             try {
-                const addr = this.contract.address;
+                const addr = (await this.getContract()).address;
                 authorizersElement.innerHTML = "Authorizers:<br>";
                 delegatesElement.innerHTML = "Delegates:<br>";
 
@@ -206,7 +210,7 @@ export class ArgusRootAuthorizer extends BaseAuthorizer {
             const authStrings = [];
             for (let j = 0; j < auths.length; j++) {
                 const auth = auths[j];
-                const name = (await new BaseOwnable(auth).getName()) || "";
+                const name = (await new BaseOwnable(auth, this.provider).getName()) || "";
                 authStrings.push(name + "(" + auth + ")");
             }
 
@@ -218,9 +222,10 @@ export class ArgusRootAuthorizer extends BaseAuthorizer {
                     delegatesElement.innerHTML += `&nbsp;&nbsp;${delegate}: ${delegates[delegate]}<br>`;
                 }
 
+                // TODO
                 if (full) {
                     for (const addr of addrs) {
-                        // await console.logline();
+                        await printLine();
                         // Assuming the "dump" function is async
                         // await dump(addr, full);
                     }
@@ -232,17 +237,16 @@ export class ArgusRootAuthorizer extends BaseAuthorizer {
     }
 }
 
-registerSubclass('ArgusRootAuthorizer', ArgusRootAuthorizer);
-
+@RegisterSubclass(BaseOwnable)
 class TransferAuthorizer extends BaseAuthorizer {
     static TYPE = "TransferType";
 
     async getTokens() {
-        return await this.contract.getAllToken();
+        return await (await this.getContract()).getAllToken();
     }
 
     async getReceivers(token: any) {
-        return await this.contract.getTokenReceivers(token);
+        return await (await this.getContract()).getTokenReceivers(token);
     }
 
     async dump(full: boolean = false) {
@@ -252,22 +256,23 @@ class TransferAuthorizer extends BaseAuthorizer {
             tokenReceiversElement.innerHTML = "Token -> Receivers:<br>";
             for (const token of await this.getTokens()) {
                 const receivers = await this.getReceivers(token);
-                const tokenSymbol = getSymbol(token);
+                const tokenSymbol = getSymbol(token, this.provider);
                 tokenReceiversElement.innerHTML += `${tokenSymbol}: ${receivers.join(",")}<br>`;
             }
         }
     }
 }
-registerSubclass('TransferAuthorizer', TransferAuthorizer);
+
+@RegisterSubclass(BaseOwnable)
 class FuncAuthorizer extends BaseAuthorizer {
     static TYPE = "FunctionType";
 
     async getContracts() {
-        return await this.contract.getAllContracts();
+        return await (await this.getContract()).getAllContracts();
     }
 
     async getFuncs(contract: any) {
-        const funcs = await this.contract.getFuncsByContract(contract);
+        const funcs = await (await this.getContract()).getFuncsByContract(contract);
         return funcs.map((f: any) => "0x" + f.hex().slice(0, 8));
     }
 
@@ -283,12 +288,13 @@ class FuncAuthorizer extends BaseAuthorizer {
         }
     }
 }
-registerSubclass('FuncAuthorizer', FuncAuthorizer);
+
+@RegisterSubclass(BaseOwnable)
 class BaseACL extends BaseAuthorizer {
     static TYPE = "CommonType";
 
     async getContracts() {
-        return await this.contract.contracts();
+        return await (await this.getContract()).contracts();
     }
 
     async dump(full: boolean = false) {
@@ -300,16 +306,17 @@ class BaseACL extends BaseAuthorizer {
         }
     }
 }
-registerSubclass('BaseACL', BaseACL);
+
+@RegisterSubclass(BaseOwnable)
 class DEXBaseACL extends BaseACL {
     static TYPE = "DexType";
 
     async getInTokens() {
-        return await this.contract.getSwapInTokens();
+        return await (await this.getContract()).getSwapInTokens();
     }
 
     async getOutTokens() {
-        return await this.contract.getSwapOutTokens();
+        return await (await this.getContract()).getSwapOutTokens();
     }
 
     async getInTokenSymbols() {
@@ -332,16 +339,17 @@ class DEXBaseACL extends BaseACL {
         }
     }
 }
-registerSubclass('DEXBaseACL', DEXBaseACL);
+
+@RegisterSubclass(BaseOwnable)
 class FarmingBaseACL extends BaseACL {
     static TYPE = "CommonType";
 
     async getWhitelistIds() {
-        return (await this.contract.getPoolIdWhiteList()).map(String);
+        return (await (await this.getContract()).getPoolIdWhiteList()).map(String);
     }
 
     async getWhitelistAddresses() {
-        return (await this.contract.getPoolAddressWhiteList()).map(String);
+        return (await (await this.getContract()).getPoolAddressWhiteList()).map(String);
     }
 
     async dump(full: boolean = false) {
@@ -356,4 +364,3 @@ class FarmingBaseACL extends BaseACL {
         }
     }
 }
-registerSubclass('FarmingBaseACL', FarmingBaseACL);

@@ -1,21 +1,42 @@
-import { ethers, toUtf8CodePoints } from 'ethers';
-import abi from '../abi/BaseOwnable.json';
-import { s32, ETHEREUM_PROVIDER, loadContract } from './utils.js';
+import { s32, loadContract } from './utils.js';
+import "reflect-metadata";
 
+const subclassesKey = Symbol('subclasses');
+
+export function RegisterSubclass(baseClass: Function) {
+    return function(target: Function) {
+        const subclasses = Reflect.getMetadata(subclassesKey, baseClass) || [];
+        subclasses.push(target);
+        Reflect.defineMetadata(subclassesKey, subclasses, baseClass);
+    };
+  }
+  
 
 export class BaseOwnable {
     contract: any;
     addr: string;
-    name: string;
-    constructor(addr: string, provider: any=ETHEREUM_PROVIDER) {
-        this.contract = new ethers.Contract(addr, abi, provider);
+    provider: any;
+    constructor(addr: string, provider: any) {
         this.addr = addr;
-        this.name = "BaseOwnable";
+        this.provider = provider;
+    }
+
+    async getContract(): Promise<any> {
+        if (this.contract) {
+            return this.contract;
+        }
+        this.contract = await loadContract(this.constructor.name, this.addr, this.provider);
+        return this.contract;
+    }
+
+    static getSubclasses(): Function[] {
+        return Reflect.getMetadata(subclassesKey, this) || [];
     }
 
     async getName(): Promise<string> {
         try {
-            const contractName = await this.contract.NAME();
+            const contractName = await (await this.getContract()).NAME();
+            
             return s32(contractName);
         } catch (error) {
             console.error("Error:", error);
@@ -29,8 +50,8 @@ export class BaseOwnable {
 
     async getVersion(): Promise<string> {
         try {
-            const factoryVersion = await this.contract.VERSION();
-            return factoryVersion.toHexString();
+            const factoryVersion = await (await this.getContract()).VERSION();
+            return factoryVersion.toString(16);
         } catch (error) {
             console.error("Error:", error);
             return '';
@@ -39,7 +60,7 @@ export class BaseOwnable {
 
     async getOwner(): Promise<string> {
         try {
-            const factoryOwner = await this.contract.owner();
+            const factoryOwner = await (await this.getContract()).owner();
             return factoryOwner;
         } catch (error) {
             console.error("Error:", error);
@@ -49,7 +70,7 @@ export class BaseOwnable {
 
     async getPendingOwner(): Promise<string> {
         try {
-            const factoryPendingOwner = await this.contract.pendingOwner();
+            const factoryPendingOwner = await (await this.getContract()).pendingOwner();
             return factoryPendingOwner;
         } catch (error) {
             console.error("Error:", error);
@@ -108,33 +129,43 @@ export class BaseOwnable {
 
     }
 }
-
+// TODO contract
 export class ERC20 {
     private static _CACHE: Record<string, string> = {};
 
     private contract: any;
-
-    constructor(addr: string) {
-        this.contract = loadContract("ERC20", addr);
+    private addr: any;
+    provider: any;
+    constructor(addr: string, provider: any) {
+        this.contract = loadContract("ERC20", addr, provider); 
+        this.provider = provider;
     }
-
-    get address(): string {
-        return this.contract.address;
-    }
-
-    get symbol(): string {
-        let ethers = require('./node_modules/ethers')
-        const provider = new ethers.providers.JsonRpcProvider('https://rpc.ankr.com/eth'); // help not standardized
-        const network = provider.getNetwork(); // help idk if it needs an await
-        const chainId = network.chainId;
-        const tag = `${chainId} ${this.address}`;
-
-        // Cache to speed.
-        if (!(tag in ERC20._CACHE)) {
-            ERC20._CACHE[tag] = this.contract.symbol();
+    async getContract(): Promise<any> {
+        if (this.contract) {
+            return this.contract;
         }
+        this.contract = await loadContract("ERC20", this.addr, this.provider);
+        return await loadContract("ERC20", this.addr, this.provider);
+    }
 
-        return ERC20._CACHE[tag];
+
+    get symbol(): Promise<string | 0> {
+        return (async () => {
+        try {
+            const network = await this.provider.getNetwork();
+            const chainId = network.chainId;
+            const tag = `${chainId} ${this.addr}`;
+
+            if (!(tag in ERC20._CACHE)) {
+                ERC20._CACHE[tag] = (await this.getContract()).symbol();
+            }
+
+            return ERC20._CACHE[tag];
+        } catch(e) {
+            return 0;  
+        }
+        })();
+        
     }
 }
 

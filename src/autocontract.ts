@@ -1,51 +1,47 @@
 import { BaseAuthorizer } from "./authorizer.js";
 import { BaseOwnable } from "./ownable.js";
-import { registerSubclass } from "./subclasses.js";
+import "./authorizer.js";
+
 
 interface IVersion {
     dump(full: boolean): void;
 }
 
-function* _sub_classes(cls: any): IterableIterator<any> {
-    for (const sub_cls of cls.__subclasses__()) {
-        yield sub_cls;
-        yield* _sub_classes(sub_cls);
-    }
-}
 
-function convert(addr: string): BaseOwnable | BaseAuthorizer | null {
-    const sub_cls = new Set(_sub_classes(BaseOwnable));
-
-    const base = new BaseOwnable(addr);
-    const name = base.name;
-
-    if (name === null) {
+async function convert(addr: string, provider: any): Promise<BaseOwnable | BaseAuthorizer | null> {
+    const sub_cls = BaseOwnable.getSubclasses();
+    
+    const base = new BaseOwnable(addr, provider);
+    const name = (await base.getName()).replace(/\0/g, '').trim();
+    if (name == null) {
         return null;
     }
 
     for (const cls of sub_cls) {
-        if (cls.__name__ === name) {
-            return new cls(addr);
+        if (cls.name == name) {
+            const constructableClass = cls as new (addr: string, provider: any) => any; 
+            return new constructableClass(addr, provider);
         }
     }
 
-    const base_auth = new BaseAuthorizer(addr);
-    const typ = base_auth.getType();
-    if (typ === null) {
+    const base_auth = new BaseAuthorizer(addr, provider);
+    const typ = await base_auth.getType();
+    if (typ == null) {
         return base;
     }
 
     for (const cls of sub_cls) {
-        if (cls.TYPE === typ) {
-            return new cls(addr);
+        if ('TYPE' in cls) {
+            if (cls.TYPE == typ) {
+                return cls(addr, provider);
+        }
         }
     }
-
     return base_auth;
 }
 
-function dump(addr: string, full: boolean = false): void {
-    const obj = convert(addr);
+export async function dump(addr: string, provider: any, full: boolean = false): Promise<void> {
+    const obj = await convert(addr, provider);
     if (obj) {
         obj.dump(full);
     } else {
@@ -53,4 +49,3 @@ function dump(addr: string, full: boolean = false): void {
     }
 }
 
-export default dump;
